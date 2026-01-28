@@ -1,4 +1,4 @@
-package utils
+package helper
 
 import (
 	"fmt"
@@ -44,9 +44,6 @@ func GetUserID(c *fiber.Ctx) (string, bool) {
 	if !ok {
 		return "", false
 	}
-
-	// Use fmt.Sprintf to safely convert whatever is in "user_id" to a string
-	// This handles both uuid.UUID and string types during the transition
 	idVal, exists := claims["user_id"]
 	if !exists || idVal == nil {
 		return "", false

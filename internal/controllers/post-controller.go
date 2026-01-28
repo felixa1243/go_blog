@@ -4,14 +4,13 @@ import (
 	"go_blog/internal/database"
 	"go_blog/internal/dto"
 	"go_blog/internal/models"
-	"go_blog/internal/utils"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 )
 
-func GetBlogs(c *fiber.Ctx) error {
+func GetPosts(c *fiber.Ctx) error {
 	db := database.New().GetDB()
 
 	var modelPosts []models.Post
@@ -36,17 +35,14 @@ func GetBlogs(c *fiber.Ctx) error {
 	return c.JSON(fiber.Map{"posts": p})
 }
 
-func CreateBlog(c *fiber.Ctx) error {
+func CreatePosts(c *fiber.Ctx) error {
 	db := database.New().GetDB()
 	var req dto.PostRequest
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
 	}
 
-	author, ok := utils.GetUserID(c)
-	if !ok {
-		return c.Status(401).JSON(fiber.Map{"error": "User unauthorized or ID missing"})
-	}
+	author := c.Locals("user_id").(string)
 	authorUUID, errParse := uuid.Parse(author)
 	if errParse != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not create post"})
