@@ -1,10 +1,8 @@
 name: Deploy via SSH
-
 on:
   push:
     branches:
-      - master
-
+      - main
 jobs:
   deploy:
     runs-on: ubuntu-latest
@@ -33,7 +31,7 @@ jobs:
           host: ${{ secrets.SSH_HOST }}
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
-          source: "my-app-binary,.env"
+          source: "main,.env"
           target: "/var/www/your-app-directory"
 
       - name: Restart Service via SSH
