@@ -23,8 +23,9 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Post("/auth/register", controllers.Register)
 	s.App.Post("/auth/login", controllers.Login)
 	//Blogs
-	s.App.Get("/blogs", midleware.JWTProtected, controllers.GetBlogs)
-	s.App.Post("/blogs", midleware.JWTProtected, controllers.CreateBlog)
+	s.App.Use("/posts", midleware.JWTProtected)
+	s.App.Get("/posts", controllers.GetBlogs)
+	s.App.Post("/posts", controllers.CreateBlog)
 	s.App.Get("/health", s.healthHandler)
 
 }
