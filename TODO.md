@@ -2,7 +2,7 @@
 
 # Core And Security
 
-- [ ] Auth
+- [x] Auth
 - [ ] Validation
 - [ ] Security Headers
 - [ ] Authorization/Casbin

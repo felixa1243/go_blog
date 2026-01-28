@@ -1,0 +1,48 @@
+name: Deploy via SSH
+
+on:
+  push:
+    branches:
+      - master
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Create .env file
+        run: |
+          echo "PORT=${{ secrets.PORT }}" >> .env
+          echo "APP_ENV=${{ secrets.APP_ENV }}" >> .env
+          echo "BLUEPRINT_DB_DATABASE=${{ secrets.DB_NAME }}" >> .env
+          echo "BLUEPRINT_DB_PORT=${{ secrets.DB_PORT }}" >> .env
+          echo "BLUEPRINT_DB_HOST=${{ secrets.DB_HOST }}" >> .env
+          echo "BLUEPRINT_DB_USER=${{ secrets.DB_USER }}" >> .env
+          echo "BLUEPRINT_DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> .env
+          echo "BLUEPRINT_DB_SCHEMA=${{ secrets.DB_SCHEMA }}" >> .env
+          echo "JWT_SECRET=${{ secrets.API_KEY }}" >> .env
+
+      - name: Build Artifact
+        run: go build cmd/api/main.go
+
+      - name: Copy Binary and .env to Server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: "my-app-binary,.env"
+          target: "/var/www/your-app-directory"
+
+      - name: Restart Service via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /apps/my-blog
+            chmod +x main
+            sudo systemctl restart my-app
