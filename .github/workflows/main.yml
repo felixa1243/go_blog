@@ -32,7 +32,7 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           source: "main,.env"
-          target: "/var/www/your-app-directory"
+          target: "/apps/my-blog"
 
       - name: Restart Service via SSH
         uses: appleboy/ssh-action@v1.0.3
