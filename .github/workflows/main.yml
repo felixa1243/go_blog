@@ -43,4 +43,3 @@ jobs:
           script: |
             cd /apps/my-blog
             chmod +x main
-            sudo systemctl restart my-app
