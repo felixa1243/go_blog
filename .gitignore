@@ -5,6 +5,7 @@
 *.so
 *.dylib
 .env
+TODO.md
 # Test binary, built with "go test -c"
 *.test
 internal/keys
