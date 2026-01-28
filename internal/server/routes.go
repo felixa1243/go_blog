@@ -20,11 +20,11 @@ func (s *FiberServer) RegisterFiberRoutes() {
 
 	s.App.Get("/", s.HelloWorldHandler)
 	//Auth
-	s.App.Post("/api/auth/register", controllers.Register)
-	s.App.Post("/api/auth/login", controllers.Login)
+	s.App.Post("/auth/register", controllers.Register)
+	s.App.Post("/auth/login", controllers.Login)
 	//Blogs
-	s.App.Get("/api/blogs", midleware.JWTProtected, controllers.GetBlogs)
-	s.App.Post("api/blogs", midleware.JWTProtected, controllers.CreateBlog)
+	s.App.Get("/blogs", midleware.JWTProtected, controllers.GetBlogs)
+	s.App.Post("/blogs", midleware.JWTProtected, controllers.CreateBlog)
 	s.App.Get("/health", s.healthHandler)
 
 }
