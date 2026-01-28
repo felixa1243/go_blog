@@ -7,7 +7,7 @@ import (
 )
 
 type Post struct {
-	ID        int       `json:"id" gorm:"primaryKey"`
+	ID        int       `json:"id" gorm:"primaryKey default:increment"`
 	Title     string    `json:"title" gorm:"not null"`
 	Content   string    `json:"content" gorm:"not null"`
 	CreatedAt time.Time `json:"created_at" gorm:"not null"`
