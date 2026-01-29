@@ -59,3 +59,31 @@ func CreatePosts(c *fiber.Ctx) error {
 	}
 	return c.JSON(fiber.Map{"post": post})
 }
+func EditPost(c *fiber.Ctx) error {
+	id := c.Params("id")
+	db := database.New().GetDB()
+
+	var post models.Post
+	if err := db.First(&post, "id = ?", id).Error; err != nil {
+		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Post not found"})
+	}
+	userID := c.Locals("user_id").(uuid.UUID)
+	role := c.Locals("role").(string)
+
+	if post.AuthorID != userID && role != "Administrator" {
+		return c.Status(fiber.StatusForbidden).JSON(fiber.Map{"error": "Access denied"})
+	}
+
+	var req dto.PostRequest
+	if err := c.BodyParser(&req); err != nil {
+		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
+	}
+	if err := db.Model(&post).Updates(models.Post{
+		Title:   req.Title,
+		Content: req.Content,
+	}).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to update post"})
+	}
+
+	return c.JSON(fiber.Map{"message": "Post updated successfully", "post": post})
+}

@@ -3,7 +3,7 @@ package server
 import (
 	"go_blog/internal/controllers"
 	"go_blog/internal/helper"
-	"go_blog/internal/midleware"
+	"go_blog/internal/middleware"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
@@ -23,10 +23,11 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	s.App.Get("/", s.HelloWorldHandler)
 	//Blogs
 	pubKey, _ := helper.LoadPublicKey(os.Getenv("RSA_PUBLIC_KEY_PATH"))
-	auth := midleware.NewAuthMiddleware(pubKey)
+	auth := middleware.NewAuthMiddleware(pubKey)
 	s.App.Use("/posts", auth)
 	s.App.Get("/posts", controllers.GetPosts)
-	s.App.Post("/posts", controllers.CreatePosts)
+	s.App.Put("/posts/:id", middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.EditPost)
+	s.App.Post("/posts", middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.CreatePosts)
 	s.App.Get("/health", s.healthHandler)
 	s.App.Get("/me", auth, controllers.GetMe)
 
