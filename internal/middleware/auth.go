@@ -14,6 +14,8 @@ func NewAuthMiddleware(pubKey *rsa.PublicKey) fiber.Handler {
 			JWTAlg: jwtware.RS256,
 			Key:    pubKey,
 		},
+		TokenLookup: "header:Authorization,cookie:access_token",
+		AuthScheme:  "Bearer",
 		SuccessHandler: func(c *fiber.Ctx) error {
 			user := c.Locals("user").(*jwt.Token)
 			claims := user.Claims.(jwt.MapClaims)
@@ -24,6 +26,7 @@ func NewAuthMiddleware(pubKey *rsa.PublicKey) fiber.Handler {
 		ErrorHandler: func(c *fiber.Ctx, err error) error {
 			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
 				"message": "Unauthorized or invalid token",
+				"debug":   err.Error(),
 			})
 		},
 	})

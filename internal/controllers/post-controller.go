@@ -1,6 +1,7 @@
 package controllers
 
 import (
+	"fmt"
 	"go_blog/internal/database"
 	"go_blog/internal/dto"
 	"go_blog/internal/models"
@@ -37,27 +38,34 @@ func GetPosts(c *fiber.Ctx) error {
 
 func CreatePosts(c *fiber.Ctx) error {
 	db := database.New().GetDB()
-	var req dto.PostRequest
-	if err := c.BodyParser(&req); err != nil {
-		return c.Status(400).JSON(fiber.Map{"error": err.Error()})
-	}
 
-	author := c.Locals("user_id").(string)
-	authorUUID, errParse := uuid.Parse(author)
-	if errParse != nil {
-		return c.Status(500).JSON(fiber.Map{"error": "Could not create post"})
+	title := c.FormValue("title")
+	content := c.FormValue("content")
+	authorIDStr := c.Locals("user_id").(string)
+	authorUUID, _ := uuid.Parse(authorIDStr)
+	file, err := c.FormFile("thumbnail")
+	if err != nil {
+		return c.Status(400).JSON(fiber.Map{"error": "Thumbnail is required"})
+	}
+	filePath := fmt.Sprintf("./uploads/%d_%s", time.Now().Unix(), file.Filename)
+
+	if err := c.SaveFile(file, filePath); err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to save image"})
 	}
 	post := models.Post{
-		Title:     req.Title,
-		Content:   req.Content,
-		AuthorID:  authorUUID,
-		CreatedAt: time.Now(),
-		UpdatedAt: time.Now(),
+		Title:         title,
+		Content:       content,
+		AuthorID:      authorUUID,
+		ThumbnailPath: filePath,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
 	}
+
 	if err := db.Create(&post).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not create post"})
 	}
-	return c.JSON(fiber.Map{"post": post})
+
+	return c.Status(201).JSON(post)
 }
 func EditPost(c *fiber.Ctx) error {
 	id := c.Params("id")

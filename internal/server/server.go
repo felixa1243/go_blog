@@ -22,6 +22,7 @@ func New() *FiberServer {
 
 		db: database.New(),
 	}
+	server.App.Static("/uploads", "./uploads")
 	server.App.Use(logger.New(logger.Config{
 		Format: "[${ip}]:${port} ${status} - ${method} ${path}\n",
 	}))

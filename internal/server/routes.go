@@ -13,21 +13,23 @@ import (
 func (s *FiberServer) RegisterFiberRoutes() {
 	// Apply CORS middleware
 	s.App.Use(cors.New(cors.Config{
-		AllowOrigins:     "*",
+		AllowOrigins:     "http://localhost:3000",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
-		AllowHeaders:     "Accept,Authorization,Content-Type",
-		AllowCredentials: false, // credentials require explicit origins
+		AllowHeaders:     "Accept,Authorization,Content-Type,Cookie",
+		AllowCredentials: true, // credentials require explicit origins
 		MaxAge:           300,
 	}))
 
 	s.App.Get("/", s.HelloWorldHandler)
-	//Blogs
 	pubKey, _ := helper.LoadPublicKey(os.Getenv("RSA_PUBLIC_KEY_PATH"))
 	auth := middleware.NewAuthMiddleware(pubKey)
-	s.App.Use("/posts", auth)
+	//posts
 	s.App.Get("/posts", controllers.GetPosts)
-	s.App.Put("/posts/:id", middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.EditPost)
-	s.App.Post("/posts", middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.CreatePosts)
+	s.App.Put("/posts/:id", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.EditPost)
+	s.App.Post("/posts", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.CreatePosts)
+	//media
+	s.App.Post("/media", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.UploadMedia)
+
 	s.App.Get("/health", s.healthHandler)
 	s.App.Get("/me", auth, controllers.GetMe)
 
