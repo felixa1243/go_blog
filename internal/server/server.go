@@ -1,9 +1,10 @@
 package server
 
 import (
-	"github.com/gofiber/fiber/v2"
-
 	"go_blog/internal/database"
+
+	"github.com/gofiber/fiber/v2"
+	"github.com/gofiber/fiber/v2/middleware/logger"
 )
 
 type FiberServer struct {
@@ -21,6 +22,8 @@ func New() *FiberServer {
 
 		db: database.New(),
 	}
-
+	server.App.Use(logger.New(logger.Config{
+		Format: "[${ip}]:${port} ${status} - ${method} ${path}\n",
+	}))
 	return server
 }
