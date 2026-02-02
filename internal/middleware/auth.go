@@ -19,6 +19,8 @@ func NewAuthMiddleware(pubKey *rsa.PublicKey) fiber.Handler {
 		SuccessHandler: func(c *fiber.Ctx) error {
 			user := c.Locals("user").(*jwt.Token)
 			claims := user.Claims.(jwt.MapClaims)
+			c.Locals("fullname", claims["fullname"])
+			c.Locals("email", claims["email"])
 			c.Locals("user_id", claims["sub"])
 			c.Locals("role", claims["role"])
 			return c.Next()
@@ -30,4 +32,13 @@ func NewAuthMiddleware(pubKey *rsa.PublicKey) fiber.Handler {
 			})
 		},
 	})
+}
+func GetClaims(c *fiber.Ctx) (jwt.MapClaims, bool) {
+	token, ok := c.Locals("user").(*jwt.Token)
+	if !ok {
+		return nil, false
+	}
+
+	claims, ok := token.Claims.(jwt.MapClaims)
+	return claims, ok
 }
