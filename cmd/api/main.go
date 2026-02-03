@@ -18,7 +18,9 @@ func gracefulShutdown(fiberServer *server.FiberServer, done chan bool) {
 	// Create context that listens for the interrupt signal from the OS.
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
-
+	if fiberServer.LogFile != nil {
+		fiberServer.LogFile.Close()
+	}
 	// Listen for the interrupt signal.
 	<-ctx.Done()
 

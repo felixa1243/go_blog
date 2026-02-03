@@ -46,7 +46,7 @@ func New() Service {
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-	db.AutoMigrate(&models.Post{})
+	db.AutoMigrate(&models.Post{}, &models.Category{})
 	dbInstance = &service{
 		db: db,
 	}
@@ -92,7 +92,6 @@ func (s *service) Health() map[string]string {
 	if dbStats.OpenConnections > 40 {
 		stats["message"] = "The database is experiencing heavy load."
 	}
-	// ... (rest of your logic remains the same)
 
 	return stats
 }
