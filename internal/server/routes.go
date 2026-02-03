@@ -2,13 +2,13 @@ package server
 
 import (
 	"go_blog/internal/controllers"
-	"go_blog/internal/database"
 	"go_blog/internal/helper"
 	"go_blog/internal/middleware"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/samber/do/v2"
 )
 
 func (s *FiberServer) RegisterFiberRoutes() {
@@ -17,27 +17,35 @@ func (s *FiberServer) RegisterFiberRoutes() {
 		AllowOrigins:     "http://localhost:3000",
 		AllowMethods:     "GET,POST,PUT,DELETE,OPTIONS,PATCH",
 		AllowHeaders:     "Accept,Authorization,Content-Type,Cookie",
-		AllowCredentials: true, // credentials require explicit origins
+		AllowCredentials: true,
 		MaxAge:           300,
 	}))
 
 	s.App.Get("/", s.HelloWorldHandler)
-	pubKey, _ := helper.LoadPublicKey(os.Getenv("RSA_PUBLIC_KEY_PATH"))
-	auth := middleware.NewAuthMiddleware(pubKey)
-	db := database.New().GetDB()
-	categoriesController := controllers.NewCategoryController(db, s.validator)
-	//posts
-	s.App.Get("/posts", controllers.GetPosts)
-	s.App.Put("/posts/:id", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.EditPost)
-	s.App.Post("/posts", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.CreatePosts)
-	//media
-	s.App.Post("/media", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.UploadMedia)
-	//categories
-	s.App.Post("/categories", auth, middleware.AuthorizeRole("Administrator"), categoriesController.CreateCategory)
+
+	// DI Setup
+	publicKey, _ := helper.LoadPublicKey(os.Getenv("RSA_PUBLIC_KEY_PATH"))
+	injector := SetupDI(s.db.GetDB(), publicKey, s.validator)
+
+	// Invoke via Interfaces
+	auth := do.MustInvoke[fiber.Handler](injector)
+	categoriesController := do.MustInvoke[controllers.ICategoryController](injector)
+	postController := do.MustInvoke[controllers.IPostController](injector)
+
+	// --- Posts ---
+	s.App.Get("/posts", postController.GetPosts)
+	s.App.Post("/posts", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), postController.CreatePosts)
+	s.App.Put("/posts/:id", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), postController.EditPost)
+	s.App.Delete("/posts/:id", auth, middleware.AuthorizeRole("Administrator"), postController.DeletePost)
+
+	// --- Categories ---
 	s.App.Get("/categories", categoriesController.GetCategories)
+	s.App.Post("/categories", auth, middleware.AuthorizeRole("Administrator"), categoriesController.CreateCategory)
+
+	// --- System ---
+	s.App.Post("/media", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), controllers.UploadMedia)
 	s.App.Get("/health", s.healthHandler)
 	s.App.Get("/me", auth, controllers.GetMe)
-
 }
 
 func (s *FiberServer) HelloWorldHandler(c *fiber.Ctx) error {

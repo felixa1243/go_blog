@@ -9,26 +9,43 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-playground/validator"
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
-var validate *validator.Validate
-
-func init() {
-	validate = validator.New()
+type IPostController interface {
+	GetPosts(c *fiber.Ctx) error
+	CreatePosts(c *fiber.Ctx) error
+	EditPost(c *fiber.Ctx) error
+	DeletePost(c *fiber.Ctx) error
 }
-func GetPosts(c *fiber.Ctx) error {
-	db := database.New().GetDB()
+type PostController struct {
+	Db       *gorm.DB
+	Validate *validator.Validate
+}
 
+func NewPostController() IPostController {
+	return &PostController{
+		Db:       database.New().GetDB(),
+		Validate: validator.New(),
+	}
+}
+
+func (pc *PostController) GetPosts(c *fiber.Ctx) error {
 	var modelPosts []models.Post
-	if err := db.Find(&modelPosts).Error; err != nil {
+	if err := pc.Db.Find(&modelPosts).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch posts"})
 	}
+
 	var p []dto.PostResponse
 	for _, post := range modelPosts {
-		thumbnailpath := strings.Split(post.ThumbnailPath, "./")[1]
+		thumbnailpath := ""
+		if strings.Contains(post.ThumbnailPath, "./") {
+			thumbnailpath = strings.Split(post.ThumbnailPath, "./")[1]
+		}
+
 		p = append(p, dto.PostResponse{
 			ID:            post.ID,
 			Title:         post.Title,
@@ -39,14 +56,14 @@ func GetPosts(c *fiber.Ctx) error {
 			Slug:          post.Slug,
 		})
 	}
+
 	if len(p) == 0 {
 		return c.JSON(fiber.Map{"posts": []string{}})
 	}
 	return c.JSON(fiber.Map{"posts": p})
 }
 
-func CreatePosts(c *fiber.Ctx) error {
-	db := database.New().GetDB()
+func (pc *PostController) CreatePosts(c *fiber.Ctx) error {
 	authorIDStr, ok := c.Locals("user_id").(string)
 	if !ok {
 		return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{"error": "Unauthorized"})
@@ -55,22 +72,26 @@ func CreatePosts(c *fiber.Ctx) error {
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid Author ID format"})
 	}
+
 	file, err := c.FormFile("thumbnail")
 	if err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Thumbnail is required"})
 	}
+
 	filePath := fmt.Sprintf("./uploads/%d_%s", time.Now().Unix(), file.Filename)
 	if err := c.SaveFile(file, filePath); err != nil {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save image"})
 	}
+
 	categoriesRaw := c.FormValue("categories")
 	var categoryIDs []int
 	if err := json.Unmarshal([]byte(categoriesRaw), &categoryIDs); err != nil {
 		return c.Status(400).JSON(fiber.Map{"error": "Invalid categories format"})
 	}
+
 	var categoriesFound []models.Category
 	if len(categoryIDs) > 0 {
-		if err := db.Where("id IN ?", categoryIDs).Find(&categoriesFound).Error; err != nil {
+		if err := pc.Db.Where("id IN ?", categoryIDs).Find(&categoriesFound).Error; err != nil {
 			return c.Status(500).JSON(fiber.Map{"error": "Database error fetching categories"})
 		}
 	}
@@ -84,20 +105,20 @@ func CreatePosts(c *fiber.Ctx) error {
 		Categories:    categoriesFound,
 	}
 
-	if err := db.Create(&post).Error; err != nil {
+	if err := pc.Db.Create(&post).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not create post"})
 	}
 
 	return c.Status(201).JSON(post)
 }
-func EditPost(c *fiber.Ctx) error {
-	id := c.Params("id")
-	db := database.New().GetDB()
 
+func (pc *PostController) EditPost(c *fiber.Ctx) error {
+	id := c.Params("id")
 	var post models.Post
-	if err := db.First(&post, "id = ?", id).Error; err != nil {
+	if err := pc.Db.First(&post, "id = ?", id).Error; err != nil {
 		return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "Post not found"})
 	}
+
 	userID := c.Locals("user_id").(uuid.UUID)
 	role := c.Locals("role").(string)
 
@@ -109,7 +130,8 @@ func EditPost(c *fiber.Ctx) error {
 	if err := c.BodyParser(&req); err != nil {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid request body"})
 	}
-	if err := db.Model(&post).Updates(models.Post{
+
+	if err := pc.Db.Model(&post).Updates(models.Post{
 		Title:   req.Title,
 		Content: req.Content,
 	}).Error; err != nil {
@@ -117,4 +139,12 @@ func EditPost(c *fiber.Ctx) error {
 	}
 
 	return c.JSON(fiber.Map{"message": "Post updated successfully", "post": post})
+}
+
+func (pc *PostController) DeletePost(c *fiber.Ctx) error {
+	id := c.Params("id")
+	if err := pc.Db.Delete(&models.Post{}, "id = ?", id).Error; err != nil {
+		return c.Status(500).JSON(fiber.Map{"error": "Failed to delete post"})
+	}
+	return c.SendStatus(fiber.StatusNoContent)
 }
