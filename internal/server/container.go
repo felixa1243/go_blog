@@ -5,7 +5,7 @@ import (
 	"go_blog/internal/controllers"
 	"go_blog/internal/middleware"
 
-	"github.com/go-playground/validator/v10" // Ensure v10 is used here
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/samber/do/v2"
 	"gorm.io/gorm"

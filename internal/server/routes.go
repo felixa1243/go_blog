@@ -2,10 +2,12 @@ package server
 
 import (
 	"go_blog/internal/controllers"
+	"go_blog/internal/dto"
 	"go_blog/internal/helper"
 	"go_blog/internal/middleware"
 	"os"
 
+	"github.com/go-playground/validator/v10"
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
 	"github.com/samber/do/v2"
@@ -31,10 +33,16 @@ func (s *FiberServer) RegisterFiberRoutes() {
 	auth := do.MustInvoke[fiber.Handler](injector)
 	categoriesController := do.MustInvoke[controllers.ICategoryController](injector)
 	postController := do.MustInvoke[controllers.IPostController](injector)
+	validator := do.MustInvoke[*validator.Validate](injector)
 
 	// --- Posts ---
 	s.App.Get("/posts", postController.GetPosts)
-	s.App.Post("/posts", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), postController.CreatePosts)
+	s.App.Post("/posts",
+		auth,
+		middleware.AuthorizeRole("Administrator", "Blog:Editor"),
+		middleware.Validate(validator, new(dto.PostRequest)),
+		postController.CreatePosts,
+	)
 	s.App.Put("/posts/:id", auth, middleware.AuthorizeRole("Administrator", "Blog:Editor"), postController.EditPost)
 	s.App.Delete("/posts/:id", auth, middleware.AuthorizeRole("Administrator"), postController.DeletePost)
 

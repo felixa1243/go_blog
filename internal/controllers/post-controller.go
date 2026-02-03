@@ -6,6 +6,8 @@ import (
 	"go_blog/internal/database"
 	"go_blog/internal/dto"
 	"go_blog/internal/models"
+	"math"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,33 +36,60 @@ func NewPostController() IPostController {
 }
 
 func (pc *PostController) GetPosts(c *fiber.Ctx) error {
+	page, _ := strconv.Atoi(c.Query("page", "1"))
+	limit, _ := strconv.Atoi(c.Query("limit", "10"))
+	fmt.Println(limit)
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 10
+	}
+
+	// Calculate offset
+	offset := (page - 1) * limit
+
 	var modelPosts []models.Post
-	if err := pc.Db.Find(&modelPosts).Error; err != nil {
+	var total int64
+
+	//  Count total records
+	pc.Db.Model(&models.Post{}).Count(&total)
+
+	// Fetch paginated data
+	if err := pc.Db.Limit(limit).Offset(offset).Order("created_at DESC").Find(&modelPosts).Error; err != nil {
 		return c.Status(500).JSON(fiber.Map{"error": "Could not fetch posts"})
 	}
 
+	//  Transform to DTOs
 	var p []dto.PostResponse
 	for _, post := range modelPosts {
-		thumbnailpath := ""
+		thumbnailpath := post.ThumbnailPath
 		if strings.Contains(post.ThumbnailPath, "./") {
-			thumbnailpath = strings.Split(post.ThumbnailPath, "./")[1]
+			parts := strings.Split(post.ThumbnailPath, "./")
+			if len(parts) > 1 {
+				thumbnailpath = parts[1]
+			}
 		}
 
 		p = append(p, dto.PostResponse{
 			ID:            post.ID,
 			Title:         post.Title,
 			Content:       post.Content,
-			CreatedAt:     post.CreatedAt.String(),
-			UpdatedAt:     post.UpdatedAt.String(),
+			CreatedAt:     post.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:     post.UpdatedAt.Format(time.RFC3339),
 			ThumbnailPath: thumbnailpath,
 			Slug:          post.Slug,
 		})
 	}
-
-	if len(p) == 0 {
-		return c.JSON(fiber.Map{"posts": []string{}})
-	}
-	return c.JSON(fiber.Map{"posts": p})
+	return c.JSON(fiber.Map{
+		"data": p,
+		"meta": fiber.Map{
+			"total_records": total,
+			"current_page":  page,
+			"total_pages":   math.Ceil(float64(total) / float64(limit)),
+			"limit":         limit,
+		},
+	})
 }
 
 func (pc *PostController) CreatePosts(c *fiber.Ctx) error {
